@@ -1,180 +1,64 @@
+<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Utsav Pendo Test</title>
+        <title>Utsav Kafley</title>
+        <meta name="description" content="A collection of quiet treasures.">
         <link rel="stylesheet" href="styles.css">
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-        <script src="script.js"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:wght@400;500;600&family=Lora:wght@400;500;600&display=swap" rel="stylesheet">
+        <script src="script.js" defer></script>
     </head>
     <body>
-        <header class="header">
-            <div class="header-container">
-                <div class="logo">
-                    <h1>innit?</h1>
-                </div>
-                <nav class="nav">
-                    <a href="#" class="nav-link">Home</a>
-                    <a href="#" class="nav-link">About</a>
-                    <a href="#" class="nav-link">Contact</a>
-                </nav>
+        <!-- Dark Layer - Revealed Content -->
+        <div class="revealed-layer">
+            <div class="quote-container">
+                <blockquote class="quote">
+                    <p class="quote-text">"The only way to do great work is to love what you do."</p>
+                    <cite class="quote-author">— Steve Jobs</cite>
+                </blockquote>
             </div>
-        </header>
+            <button class="quote-cycle" aria-label="Next quote">✧</button>
+        </div>
 
-        <main class="main">
-            <div class="container">
-                <div class="content-grid">
-                    <div class="left-column">
-                        <div class="card image-card">
-                            <div class="card-header">
-                                <h3>Featured Image</h3>
-                            </div>
-                            <div class="card-content">
-                                <div class="image-wrapper">
-                                    <img src="https://picsum.photos/400/300" alt="Featured image" />
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="card quote-card">
-                            <div class="card-header">
-                                <h3>Featured Quote</h3>
-                                <button class="refresh-quote-btn btn btn-small">New Quote</button>
-                            </div>
-                            <div class="card-content">
-                                <blockquote class="featured-quote">
-                                    <p>"Loading inspirational quote..."</p>
-                                    <cite>— Quote Generator</cite>
-                                </blockquote>
-                            </div>
-                        </div>
-                    </div>
+        <!-- Paper Layer - Main Content -->
+        <div class="paper-layer">
+            <!-- Corner Decorations -->
+            <span class="corner corner--tl">·</span>
+            <span class="corner corner--tr">·</span>
+            <span class="corner corner--bl">·</span>
+            <span class="corner corner--br">·</span>
 
-                    <div class="card form-card">
-                        <div class="card-header">
-                            <h3>Interactive Form</h3>
-                            <p class="card-subtitle">Fill out the form below to test various input types</p>
-                        </div>
-                        <div class="card-content">
-                            <form id="form" class="form">
-                                <div class="form-group">
-                                    <label for="name" class="form-label">Full Name</label>
-                                    <input id="name" type="text" class="form-input" placeholder="Enter your full name" />
-                                </div>
+            <main class="main">
+                <div class="composition">
+                    <!-- Hidden Treasure Links -->
+                    <a href="#flashcards" class="glyph glyph--top" aria-label="Hidden treasure" title="">⁂</a>
+                    <a href="#chords" class="glyph glyph--top-left" aria-label="Hidden treasure" title="">✦</a>
+                    <a href="#maps" class="glyph glyph--top-right" aria-label="Hidden treasure" title="">※</a>
+                    <a href="#treasure-4" class="glyph glyph--bottom-left" aria-label="Hidden treasure" title="">·</a>
+                    <a href="#treasure-5" class="glyph glyph--bottom-right" aria-label="Hidden treasure" title="">·</a>
+                    <a href="#treasure-6" class="glyph glyph--left" aria-label="Hidden treasure" title="">✧</a>
+                    <a href="#treasure-7" class="glyph glyph--right" aria-label="Hidden treasure" title="">✧</a>
 
-                                <div class="form-group">
-                                    <label for="email" class="form-label">Email Address</label>
-                                    <input id="email" type="email" class="form-input" placeholder="Enter your email" />
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="password" class="form-label">Password</label>
-                                    <input id="password" type="password" class="form-input" placeholder="Enter your password" />
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="phone" class="form-label">Phone Number</label>
-                                    <input id="phone" type="tel" class="form-input" placeholder="Enter your phone number" />
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="date" class="form-label">Date</label>
-                                    <input id="date" type="date" class="form-input" />
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="range" class="form-label">Range Slider</label>
-                                    <input id="range" type="range" class="form-range" min="0" max="100" value="50" />
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="file" class="form-label">Upload File</label>
-                                    <input id="file" type="file" class="form-input file-input" />
-                                </div>
-
-                                <div class="form-actions">
-                                    <button type="submit" class="btn btn-primary">Submit Form</button>
-                                    <button type="button" class="btn btn-secondary">Reset</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="media-section">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>Media Content</h3>
-                            <p class="card-subtitle">Interactive video player</p>
-                        </div>
-                        <div class="card-content">
-                            <div class="video-wrapper">
-                                <iframe
-                                    id="kaltura_player"
-                                    src="https://cdnapisec.kaltura.com/p/1059471/sp/105947100/embedIframeJs/uiconf_id/33618202/partner_id/1059471?iframeembed=true&playerId=kaltura_player&entry_id=1_9vki2x32&flashvars[streamerType]=auto&amp;flashvars[localizationCode]=en&amp;flashvars[sideBarContainer.plugin]=true&amp;flashvars[sideBarContainer.position]=left&amp;flashvars[sideBarContainer.clickToClose]=true&amp;flashvars[chapters.plugin]=true&amp;flashvars[chapters.layout]=vertical&amp;flashvars[chapters.thumbnailRotator]=false&amp;flashvars[streamSelector.plugin]=true&amp;flashvars[EmbedPlayer.SpinnerTarget]=videoHolder&amp;flashvars[dualScreen.plugin]=true&amp;flashvars[hotspots.plugin]=1&amp;flashvars[Kaltura.addCrossoriginToIframe]=true&amp;&wid=1_s2bqu0u1"
-                                    allowfullscreen
-                                    webkitallowfullscreen
-                                    mozAllowFullScreen
-                                    allow="autoplay *; fullscreen *; encrypted-media *"
-                                    sandbox="allow-downloads allow-forms allow-same-origin allow-scripts allow-top-navigation allow-pointer-lock allow-popups allow-modals allow-orientation-lock allow-popups-to-escape-sandbox allow-presentation allow-top-navigation-by-user-activation"
-                                    frameborder="0"
-                                    title="Captions Demo - Yochai Benkler on the new open-source economics"
-                                ></iframe>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <footer class="footer">
-            <div class="footer-container">
-                <div class="footer-content">
-                    <div class="footer-section">
-                        <h4>Company</h4>
-                        <ul>
-                            <li><a href="#">About Us</a></li>
-                            <li><a href="#">Careers</a></li>
-                            <li><a href="#">Press</a></li>
-                            <li><a href="#">Blog</a></li>
-                        </ul>
-                    </div>
+                    <!-- Main Title -->
+                    <h1 class="title">TESTING</h1>
                     
-                    <div class="footer-section">
-                        <h4>Products</h4>
-                        <ul>
-                            <li><a href="#">Features</a></li>
-                            <li><a href="#">Pricing</a></li>
-                            <li><a href="#">API</a></li>
-                            <li><a href="#">Documentation</a></li>
-                        </ul>
-                    </div>
-                    
-                    <div class="footer-section">
-                        <h4>Support</h4>
-                        <ul>
-                            <li><a href="#">Help Center</a></li>
-                            <li><a href="#">Community</a></li>
-                            <li><a href="#">Contact</a></li>
-                            <li><a href="#">Security</a></li>
-                        </ul>
-                    </div>
-                    
-                    <div class="footer-section">
-                        <h4>Legal</h4>
-                        <ul>
-                            <li><a href="#">Privacy Policy</a></li>
-                            <li><a href="#">Terms of Service</a></li>
-                            <li><a href="#">Cookie Policy</a></li>
-                            <li><a href="#">GDPR</a></li>
-                        </ul>
+                    <!-- The Tear Line - Interactive -->
+                    <div class="tear-zone" aria-label="Drag to reveal hidden content">
+                        <div class="title-rule"></div>
                     </div>
                 </div>
-                
-                <div class="footer-bottom">
-                    <p>&copy; 2024 Utsav Test Platform. All rights reserved.</p>
-                </div>
-            </div>
-        </footer>
+            </main>
+
+            <!-- Torn Edge SVG (bottom of paper) -->
+            <svg class="torn-edge" viewBox="0 0 1200 50" preserveAspectRatio="none">
+                <path class="torn-edge-path" d="M0,0 L0,25 Q15,35 30,25 T60,30 T90,20 T120,28 T150,22 T180,30 T210,18 T240,28 T270,20 T300,32 T330,22 T360,28 T390,18 T420,30 T450,22 T480,28 T510,20 T540,30 T570,22 T600,28 T630,18 T660,30 T690,22 T720,28 T750,20 T780,30 T810,22 T840,28 T870,18 T900,30 T930,22 T960,28 T990,20 T1020,30 T1050,22 T1080,28 T1110,18 T1140,30 T1170,25 L1200,28 L1200,0 Z"/>
+            </svg>
+        </div>
+
+        <!-- Reset button (appears after tear) -->
+        <button class="reset-btn" aria-label="Reset paper">↺</button>
     </body>
 </html>
