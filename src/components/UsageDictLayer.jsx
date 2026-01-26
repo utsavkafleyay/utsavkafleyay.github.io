@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { lookupWord, lookupThesaurus } from '../services/dictionaryApi';
 import { getDeepDive } from '../services/geminiApi';
@@ -10,6 +10,17 @@ import {
     getHistory,
     addToHistory 
 } from '../utils/storage';
+import { words as curatedWords } from '../data/usageWords';
+
+// Get a deterministic "word of the day" based on date
+const getWordOfTheDay = () => {
+    const today = new Date();
+    const dayOfYear = Math.floor(
+        (today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24)
+    );
+    const index = dayOfYear % curatedWords.length;
+    return curatedWords[index].word;
+};
 
 const UsageDictLayer = ({ isVisible }) => {
     const [searchInput, setSearchInput] = useState('');
@@ -24,12 +35,75 @@ const UsageDictLayer = ({ isVisible }) => {
     const [showFavorites, setShowFavorites] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [deepDiveCache, setDeepDiveCache] = useState({});
+    const [searchBarVisible, setSearchBarVisible] = useState(false);
+    const [insightPanelOpen, setInsightPanelOpen] = useState(false);
+    
+    // Refs for focus management
+    const searchInputRef = useRef(null);
+    const previousFocusRef = useRef(null);
+    const spotlightRef = useRef(null);
     
     // Load favorites and history on mount
     useEffect(() => {
         setFavorites(getFavorites());
         setHistory(getHistory());
     }, []);
+    
+    // Load word of the day on initial mount
+    useEffect(() => {
+        const wordOfTheDay = getWordOfTheDay();
+        handleLookup(wordOfTheDay);
+    }, []);
+    
+    // Keyboard shortcut: Cmd+K (Mac) / Ctrl+K (Windows/Linux) to toggle, Escape to close
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setSearchBarVisible(prev => {
+                    if (!prev) {
+                        // Opening: save current focus
+                        previousFocusRef.current = document.activeElement;
+                    }
+                    return !prev;
+                });
+            }
+            if (e.key === 'Escape' && searchBarVisible) {
+                e.preventDefault();
+                setSearchBarVisible(false);
+            }
+        };
+        
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [searchBarVisible]);
+    
+    // Click outside to close
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (spotlightRef.current && !spotlightRef.current.contains(e.target)) {
+                setSearchBarVisible(false);
+            }
+        };
+        
+        if (searchBarVisible) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [searchBarVisible]);
+    
+    // Focus management: focus input on open, restore focus on close
+    useEffect(() => {
+        if (searchBarVisible) {
+            // Small delay to ensure DOM is ready
+            setTimeout(() => {
+                searchInputRef.current?.focus();
+            }, 10);
+        } else {
+            // Restore previous focus
+            previousFocusRef.current?.focus();
+        }
+    }, [searchBarVisible]);
     
     // Lookup a word
     const handleLookup = async (word) => {
@@ -76,22 +150,36 @@ const UsageDictLayer = ({ isVisible }) => {
         
         const word = currentWord.word.toLowerCase();
         
+        // If panel is open and we have data, toggle it closed
+        if (insightPanelOpen && deepDiveData) {
+            setInsightPanelOpen(false);
+            return;
+        }
+        
         // Check cache first
         if (deepDiveCache[word]) {
             setDeepDiveData(deepDiveCache[word]);
+            setInsightPanelOpen(true);
             return;
         }
         
         setDeepDiveLoading(true);
+        setInsightPanelOpen(true);
         try {
             const data = await getDeepDive(word);
             setDeepDiveData(data);
             setDeepDiveCache(prev => ({ ...prev, [word]: data }));
         } catch (err) {
             console.error("Deep dive error:", err);
+            setInsightPanelOpen(false);
         } finally {
             setDeepDiveLoading(false);
         }
+    };
+    
+    // Close insight panel
+    const closeInsightPanel = () => {
+        setInsightPanelOpen(false);
     };
     
     // Handle search
@@ -99,6 +187,7 @@ const UsageDictLayer = ({ isVisible }) => {
         e.preventDefault();
         if (searchInput.trim()) {
             handleLookup(searchInput);
+            setSearchBarVisible(false);
         }
     };
     
@@ -135,43 +224,36 @@ const UsageDictLayer = ({ isVisible }) => {
     
     return (
         <div className={`layer usage-dict-layer ${isVisible ? 'visible' : ''}`}>
-            {/* Back navigation */}
-            <Link to="/" className="back-link">
-                ← Home
-            </Link>
-            
-            {/* Search bar */}
-            <div className="search-bar-top">
-                <form onSubmit={handleSearch}>
-                    <input
-                        type="text"
-                        className="search-input"
-                        placeholder="Look up any word..."
-                        value={searchInput}
-                        onChange={(e) => setSearchInput(e.target.value)}
-                        autoFocus
-                    />
-                    <button 
-                        type="submit"
-                        className="search-btn"
-                        disabled={loading || !searchInput.trim()}
-                    >
-                        {loading ? '...' : 'Search'}
-                    </button>
-                </form>
-                {searchInput && (
-                    <button 
-                        className="clear-search-btn"
-                        onClick={() => {
-                            setSearchInput('');
-                            setError(null);
-                            setSuggestions([]);
-                        }}
-                    >
-                        ×
-                    </button>
-                )}
-            </div>
+            {/* Spotlight-style floating search bar (Cmd+K to toggle) */}
+            {searchBarVisible && (
+                <div className="spotlight-overlay">
+                    <div className="spotlight-search" ref={spotlightRef}>
+                        <form onSubmit={handleSearch}>
+                            <div className="spotlight-input-wrapper">
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                    placeholder="Search for a word..."
+                                    className="spotlight-input"
+                                    autoComplete="off"
+                                    spellCheck="false"
+                                />
+                                {searchInput && (
+                                    <button
+                                        type="button"
+                                        className="spotlight-clear"
+                                        onClick={() => setSearchInput('')}
+                                    >
+                                        ×
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
             
             {/* Word content */}
             <div className="word-container">
@@ -218,23 +300,29 @@ const UsageDictLayer = ({ isVisible }) => {
                                             onClick={playAudio}
                                             title="Play pronunciation"
                                         >
-                                            🔊
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                                            </svg>
                                         </button>
                                     )}
                                     <button 
-                                        className={`action-btn deep-dive-btn ${deepDiveLoading ? 'loading' : ''}`}
+                                        className={`action-btn deep-dive-btn ${deepDiveLoading ? 'loading' : ''} ${insightPanelOpen ? 'active' : ''}`}
                                         onClick={handleDeepDive}
                                         disabled={deepDiveLoading}
-                                        title="Deep Dive with AI"
+                                        title={insightPanelOpen ? "Hide AI Insight" : "AI Insight"}
                                     >
-                                        ✦
+                                        AI Insight ✦
                                     </button>
                                     <button 
                                         className={`action-btn favorite-btn ${isFavorite(currentWord.word) ? 'favorited' : ''}`}
                                         onClick={toggleFavorite}
                                         title={isFavorite(currentWord.word) ? 'Remove from favorites' : 'Add to favorites'}
                                     >
-                                        {isFavorite(currentWord.word) ? '★' : '☆'}
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill={isFavorite(currentWord.word) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                                        </svg>
                                     </button>
                                 </div>
                             </div>
@@ -281,7 +369,7 @@ const UsageDictLayer = ({ isVisible }) => {
                                         <div className="related-group">
                                             <h4 className="related-title">Synonyms</h4>
                                             <div className="related-tags">
-                                                {currentWord.synonyms.slice(0, 8).map((syn, i) => (
+                                                {currentWord.synonyms.slice(0, 5).map((syn, i) => (
                                                     <button
                                                         key={i}
                                                         className="related-tag"
@@ -300,7 +388,7 @@ const UsageDictLayer = ({ isVisible }) => {
                                         <div className="related-group">
                                             <h4 className="related-title">Antonyms</h4>
                                             <div className="related-tags">
-                                                {currentWord.antonyms.slice(0, 8).map((ant, i) => (
+                                                {currentWord.antonyms.slice(0, 5).map((ant, i) => (
                                                     <button
                                                         key={i}
                                                         className="related-tag"
@@ -317,159 +405,66 @@ const UsageDictLayer = ({ isVisible }) => {
                                     )}
                                 </div>
                             )}
-                            
-                            {/* Deep Dive / Discovery Card */}
-                            {(deepDiveLoading || deepDiveData) && (
-                                <div className={`discovery-card ${deepDiveLoading ? 'shimmer' : ''}`}>
-                                    <h3 className="discovery-title">✦ AI Insights</h3>
-                                    {deepDiveLoading ? (
-                                        <div className="discovery-loading">
-                                            <div className="shimmer-line"></div>
-                                            <div className="shimmer-line"></div>
-                                            <div className="shimmer-line short"></div>
-                                        </div>
-                                    ) : (
-                                        <div className="discovery-content">
-                                            <div className="discovery-section">
-                                                <h4 className="discovery-label">The Nuance</h4>
-                                                <p className="discovery-text">{deepDiveData.nuance}</p>
-                                            </div>
-                                            <div className="discovery-section">
-                                                <h4 className="discovery-label">Literary Context</h4>
-                                                <p className="discovery-text">{deepDiveData.literary_history}</p>
-                                            </div>
-                                            <div className="discovery-section">
-                                                <h4 className="discovery-label">Contemporary Scenario</h4>
-                                                <p className="discovery-text">{deepDiveData.modern_scenario}</p>
-                                            </div>
-                                            <div className="discovery-section">
-                                                <h4 className="discovery-label">Mnemonic</h4>
-                                                <p className="discovery-text mnemonic-text">{deepDiveData.mnemonic}</p>
-                                            </div>
-                                            <div className="discovery-vibe">
-                                                {deepDiveData.vibe_check.map((vibe, i) => (
-                                                    <span key={i} className="vibe-tag">#{vibe}</span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     </article>
                 )}
                 
-                {!currentWord && !loading && !error && (
-                    <div className="welcome-state">
-                        <h2 className="welcome-title">Vocabulary Explorer</h2>
-                        <p className="welcome-text">
-                            Search for any word to explore its definition, etymology, and usage.
-                        </p>
-                        {history.length > 0 && (
-                            <button 
-                                className="welcome-action"
-                                onClick={() => setShowHistory(true)}
-                            >
-                                View Recent Searches
-                            </button>
-                        )}
-                        {favorites.length > 0 && (
-                            <button 
-                                className="welcome-action"
-                                onClick={() => setShowFavorites(true)}
-                            >
-                                View Favorites
-                            </button>
-                        )}
-                    </div>
-                )}
-                
-                {showHistory && !loading && (
-                    <div className="word-list">
-                        <div className="list-header">
-                            <h2 className="list-title">Recent Searches</h2>
-                            <button 
-                                className="list-close"
-                                onClick={() => setShowHistory(false)}
-                            >
-                                ×
-                            </button>
-                        </div>
-                        <div className="word-chips">
-                            {history.map((word, i) => (
-                                <button
-                                    key={i}
-                                    className="word-chip"
-                                    onClick={() => {
-                                        setSearchInput(word);
-                                        handleLookup(word);
-                                    }}
-                                >
-                                    {word}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-                
-                {showFavorites && !loading && (
-                    <div className="word-list">
-                        <div className="list-header">
-                            <h2 className="list-title">Favorites</h2>
-                            <button 
-                                className="list-close"
-                                onClick={() => setShowFavorites(false)}
-                            >
-                                ×
-                            </button>
-                        </div>
-                        {favorites.length > 0 ? (
-                            <div className="word-chips">
-                                {favorites.map((fav, i) => (
-                                    <button
-                                        key={i}
-                                        className="word-chip"
-                                        onClick={() => {
-                                            setSearchInput(fav.word);
-                                            handleLookup(fav.word);
-                                        }}
-                                    >
-                                        {fav.word}
-                                    </button>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="empty-message">No favorites yet. Click the star to save words.</p>
-                        )}
-                    </div>
-                )}
             </div>
             
-            {/* Navigation controls */}
-            <div className="word-nav-controls">
-                <button 
-                    className="nav-btn nav-btn--history"
-                    onClick={() => setShowHistory(!showHistory)}
-                    title={`${history.length} recent searches`}
-                >
-                    History ({history.length})
+            {/* AI Insight Panel - slides in from right */}
+            <aside className={`insight-panel ${insightPanelOpen ? 'open' : ''}`}>
+                <button className="insight-panel-close" onClick={closeInsightPanel} title="Close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
                 </button>
-                <button 
-                    className="nav-btn nav-btn--random"
-                    onClick={getRandomWord}
-                    disabled={favorites.length === 0 && history.length === 0}
-                    title="Random from history/favorites"
-                >
-                    Random
-                </button>
-                <button 
-                    className="nav-btn nav-btn--favorites"
-                    onClick={() => setShowFavorites(!showFavorites)}
-                    title={`${favorites.length} favorites`}
-                >
-                    Favorites ({favorites.length})
-                </button>
-            </div>
+                
+                {deepDiveLoading && (
+                    <div className="insight-content">
+                        <h3 className="discovery-title">AI Insight</h3>
+                        <div className="discovery-loading">
+                            <div className="shimmer-line"></div>
+                            <div className="shimmer-line short"></div>
+                            <div className="shimmer-line"></div>
+                            <div className="shimmer-line"></div>
+                            <div className="shimmer-line short"></div>
+                        </div>
+                    </div>
+                )}
+                
+                {deepDiveData && !deepDiveLoading && (
+                    <div className="insight-content">
+                        <h3 className="discovery-title">AI Insight</h3>
+                        
+                        {deepDiveData.reach_for_when && (
+                            <div className="discovery-section">
+                                <p className="discovery-label">Reach for this word when</p>
+                                <p className="discovery-text reach-for-text">{deepDiveData.reach_for_when}</p>
+                            </div>
+                        )}
+                        
+                        {deepDiveData.transformation && (
+                            <div className="discovery-section transformation-section">
+                                <p className="discovery-label">Transformation</p>
+                                <div className="transformation-compare">
+                                    <div className="transformation-before">
+                                        <span className="transform-tag">Before</span>
+                                        <p className="transform-text">{deepDiveData.transformation.before}</p>
+                                    </div>
+                                    <div className="transformation-after">
+                                        <span className="transform-tag">After</span>
+                                        <p className="transform-text">{deepDiveData.transformation.after}</p>
+                                    </div>
+                                </div>
+                                {deepDiveData.transformation.why && (
+                                    <p className="transformation-why">{deepDiveData.transformation.why}</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </aside>
         </div>
     );
 };

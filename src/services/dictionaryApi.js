@@ -1,7 +1,5 @@
-import { API_KEYS, MERRIAM_WEBSTER_BASE_URL, DICTIONARIES } from '../config/api';
-
 /**
- * Look up a word in Merriam-Webster Collegiate Dictionary
+ * Look up a word in Merriam-Webster Collegiate Dictionary (via Netlify function)
  * @param {string} word - The word to look up
  * @returns {Promise<Object>} - Parsed word data
  */
@@ -11,10 +9,13 @@ export const lookupWord = async (word) => {
     }
     
     const cleanWord = word.trim().toLowerCase();
-    const url = `${MERRIAM_WEBSTER_BASE_URL}/${DICTIONARIES.collegiate}/json/${encodeURIComponent(cleanWord)}?key=${API_KEYS.collegiate}`;
     
     try {
-        const response = await fetch(url);
+        const response = await fetch('/.netlify/functions/dictionary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word: cleanWord, type: 'collegiate' })
+        });
         
         if (!response.ok) {
             throw new Error(`API request failed: ${response.status}`);
@@ -160,7 +161,7 @@ const parseExamples = (sseq) => {
 };
 
 /**
- * Get thesaurus data (synonyms/antonyms)
+ * Get thesaurus data (synonyms/antonyms) via Netlify function
  */
 export const lookupThesaurus = async (word) => {
     if (!word || !word.trim()) {
@@ -168,10 +169,13 @@ export const lookupThesaurus = async (word) => {
     }
     
     const cleanWord = word.trim().toLowerCase();
-    const url = `${MERRIAM_WEBSTER_BASE_URL}/${DICTIONARIES.thesaurus}/json/${encodeURIComponent(cleanWord)}?key=${API_KEYS.thesaurus}`;
     
     try {
-        const response = await fetch(url);
+        const response = await fetch('/.netlify/functions/dictionary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word: cleanWord, type: 'thesaurus' })
+        });
         
         if (!response.ok) {
             throw new Error(`API request failed: ${response.status}`);

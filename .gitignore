@@ -17,6 +17,9 @@ src/config/api.js
 .env
 .env.local
 
+# Netlify
+.netlify
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
