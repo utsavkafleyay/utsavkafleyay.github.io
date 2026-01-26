@@ -4,10 +4,6 @@ import UsageDictLayer from './components/UsageDictLayer';
 import './styles/App.css';
 
 function App() {
-    pendo.initialize({
-  visitor: { id: 'utsav' },
-  account: { id: 'utsav' }
-});
     return (
         <Router>
             <Routes>
