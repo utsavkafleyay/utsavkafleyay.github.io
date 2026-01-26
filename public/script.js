@@ -20,7 +20,7 @@ function initializePendo(apiKey, config) {
         existingScript.remove();
     }
 
-    // Initialize new Pendo instance
+    // Initialize Pendo stub that queues calls until script loads
     (function (p, e, n, d, o) {
         var v, w, x, y, z;
         o = p[d] = p[d] || {};
@@ -39,20 +39,20 @@ function initializePendo(apiKey, config) {
         y.src = 'https://cdn.pendo-atlas.pendo-dev.com/agent/static/' + apiKey + '/pendo.js';
         z = e.getElementsByTagName(n)[0];
         z.parentNode.insertBefore(y, z);
+        
+        // Initialize after stub is set up (calls are queued until script loads)
+        o.initialize({
+            visitor: {
+                id: config.visitor.id,
+                email: config.visitor.email,
+                full_name: config.visitor.full_name
+            },
+            account: {
+                id: config.account.id,
+                name: config.account.name
+            }
+        });
     })(window, document, 'script', 'pendo');
-
-    // Initialize with visitor and account
-    pendo.initialize({
-        visitor: {
-            id: config.visitor.id,
-            email: config.visitor.email,
-            full_name: config.visitor.full_name
-        },
-        account: {
-            id: config.account.id,
-            name: config.account.name
-        }
-    });
 }
 
 // Fetch Pendo API key from serverless function and initialize
@@ -60,14 +60,20 @@ async function loadPendo() {
     try {
         const response = await fetch('/.netlify/functions/pendo-config');
         if (!response.ok) {
-            console.warn('Could not load Pendo config');
+            console.warn('Could not load Pendo config - functions may not be deployed yet');
             return;
         }
-        const { apiKey } = await response.json();
-        initializePendo(apiKey, pendoVisitorConfig);
+        const data = await response.json();
+        if (data.apiKey) {
+            initializePendo(data.apiKey, pendoVisitorConfig);
+        }
     } catch (error) {
-        console.warn('Pendo initialization skipped:', error.message);
+        // Silently fail - Pendo is optional
+        console.warn('Pendo initialization skipped');
     }
 }
 
-loadPendo();
+// Only load Pendo in production (when functions are available)
+if (window.location.hostname !== 'localhost') {
+    loadPendo();
+}
