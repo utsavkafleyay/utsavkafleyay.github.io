@@ -212,6 +212,65 @@
     align-items: baseline;
 }
 
+/* Hover-reveal writing quote */
+.word-whisper {
+    margin-top: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    background: rgba(212, 180, 91, 0.04);
+    border-left: 2px solid rgba(212, 180, 91, 0.25);
+    border-radius: 0 6px 6px 0;
+    animation: whisperIn 0.4s ease-out;
+}
+
+@keyframes whisperIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.whisper-text {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: var(--text-base);
+    font-style: italic;
+    color: hsl(40, 25%, 72%);
+    line-height: 1.7;
+    margin: 0 0 var(--space-xs) 0;
+}
+
+.whisper-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.whisper-author {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: var(--text-xs);
+    color: hsl(210, 15%, 50%);
+    letter-spacing: 0.08em;
+    margin: 0;
+}
+
+.whisper-dismiss {
+    background: none;
+    border: none;
+    color: hsl(210, 15%, 45%);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.15s ease;
+}
+
+.whisper-dismiss:hover {
+    color: hsl(210, 20%, 75%);
+}
+
 .word-pronunciation {
     font-family: 'Crimson Pro', Georgia, serif;
     font-size: var(--text-base);
@@ -928,6 +987,178 @@
 .nav-btn--history,
 .nav-btn--favorites {
     font-size: var(--text-sm);
+}
+
+/* API status banner */
+.api-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    padding: var(--space-xs) var(--space-md);
+    background: hsl(35, 60%, 18%);
+    border-bottom: 1px solid hsl(35, 50%, 30%);
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: var(--text-xs);
+    color: hsl(40, 50%, 75%);
+    letter-spacing: 0.03em;
+    animation: bannerSlide 0.3s ease-out;
+}
+
+@keyframes bannerSlide {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+}
+
+.api-banner-close {
+    background: none;
+    border: none;
+    color: hsl(40, 40%, 60%);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.15s ease;
+}
+
+.api-banner-close:hover {
+    color: hsl(40, 50%, 85%);
+}
+
+/* Pitfall text */
+.pitfall-text {
+    color: hsl(25, 45%, 75%);
+}
+
+/* ===== WORD COLLECTION PAGE ===== */
+.collection-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-xl);
+}
+
+.filter-active {
+    background: rgba(212, 180, 91, 0.15) !important;
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+}
+
+.collection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-md);
+}
+
+.collection-card {
+    padding: var(--space-md);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.collection-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.collection-card.expanded {
+    background: rgba(212, 180, 91, 0.04);
+    border-color: rgba(212, 180, 91, 0.2);
+    grid-column: 1 / -1;
+    max-width: 600px;
+}
+
+.collection-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--space-xs);
+}
+
+.collection-word {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: var(--text-md);
+    font-weight: 400;
+    color: hsl(210, 30%, 88%);
+    margin: 0;
+}
+
+.collection-pos {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: var(--text-xs);
+    color: hsl(210, 15%, 50%);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.collection-def {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: var(--text-sm);
+    color: hsl(210, 18%, 70%);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.collection-expanded {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    animation: whisperIn 0.3s ease-out;
+}
+
+.collection-pronunciation {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: var(--text-sm);
+    color: hsl(210, 20%, 65%);
+    font-style: italic;
+    margin: 0 0 var(--space-sm) 0;
+}
+
+.collection-example {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: var(--text-sm);
+    font-style: italic;
+    color: hsl(210, 20%, 75%);
+    line-height: 1.7;
+    border-left: 2px solid hsl(210, 25%, 35%);
+    padding-left: var(--space-sm);
+    margin: var(--space-sm) 0;
+}
+
+.collection-etymology {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: var(--text-xs);
+    color: hsl(210, 15%, 60%);
+    line-height: 1.6;
+    margin: var(--space-sm) 0;
+}
+
+.collection-lookup-btn {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: var(--text-xs);
+    padding: var(--space-xs) var(--space-sm);
+    background: rgba(212, 180, 91, 0.1);
+    border: 1px solid rgba(212, 180, 91, 0.3);
+    border-radius: 4px;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: var(--space-xs);
+    letter-spacing: 0.05em;
+}
+
+.collection-lookup-btn:hover {
+    background: var(--accent);
+    color: hsl(220, 15%, 12%);
 }
 
 /* ===== RESPONSIVE ===== */

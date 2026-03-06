@@ -1,10 +1,6 @@
-// Netlify serverless function to proxy Merriam-Webster Dictionary API
-// This keeps your API keys secure on the server side
-
-const MERRIAM_WEBSTER_BASE_URL = 'https://www.dictionaryapi.com/api/v3/references';
+const WORDNIK_BASE = 'https://api.wordnik.com/v4/word.json';
 
 export default async (request) => {
-  // Only allow POST requests
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
@@ -13,8 +9,8 @@ export default async (request) => {
   }
 
   try {
-    const { word, type = 'collegiate' } = await request.json();
-    
+    const { word } = await request.json();
+
     if (!word) {
       return new Response(JSON.stringify({ error: 'Word is required' }), {
         status: 400,
@@ -22,18 +18,7 @@ export default async (request) => {
       });
     }
 
-    // Select the right API key based on type
-    let apiKey;
-    let dictionary;
-    
-    if (type === 'thesaurus') {
-      apiKey = process.env.MW_THESAURUS_KEY;
-      dictionary = 'ithesaurus';
-    } else {
-      apiKey = process.env.MW_COLLEGIATE_KEY;
-      dictionary = 'collegiate';
-    }
-    
+    const apiKey = process.env.WORDNIK_API_KEY;
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'API key not configured' }), {
         status: 500,
@@ -41,19 +26,45 @@ export default async (request) => {
       });
     }
 
-    const cleanWord = word.trim().toLowerCase();
-    const url = `${MERRIAM_WEBSTER_BASE_URL}/${dictionary}/json/${encodeURIComponent(cleanWord)}?key=${apiKey}`;
+    const cleanWord = encodeURIComponent(word.trim().toLowerCase());
+    const keyParam = `api_key=${apiKey}`;
 
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      return new Response(JSON.stringify({ error: `API request failed: ${response.status}` }), {
-        status: response.status,
+    const endpoints = {
+      definitions: `${WORDNIK_BASE}/${cleanWord}/definitions?limit=5&includeRelated=false&sourceDictionaries=all&${keyParam}`,
+      examples: `${WORDNIK_BASE}/${cleanWord}/examples?limit=5&${keyParam}`,
+      relatedWords: `${WORDNIK_BASE}/${cleanWord}/relatedWords?limitPerRelationshipType=10&${keyParam}`,
+      pronunciations: `${WORDNIK_BASE}/${cleanWord}/pronunciations?limit=3&${keyParam}`,
+      etymologies: `${WORDNIK_BASE}/${cleanWord}/etymologies?${keyParam}`,
+      audio: `${WORDNIK_BASE}/${cleanWord}/audio?limit=1&${keyParam}`,
+    };
+
+    const results = await Promise.allSettled(
+      Object.entries(endpoints).map(async ([key, url]) => {
+        const res = await fetch(url);
+        if (!res.ok) {
+          if (res.status === 404) return [key, null];
+          throw new Error(`${key}: ${res.status}`);
+        }
+        return [key, await res.json()];
+      })
+    );
+
+    const data = {};
+    let allNotFound = true;
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        const [key, value] = result.value;
+        data[key] = value;
+        if (value !== null) allNotFound = false;
+      }
+    }
+
+    if (allNotFound || (!data.definitions?.length && !data.examples?.examples?.length)) {
+      return new Response(JSON.stringify({ notFound: true, word: word.trim().toLowerCase() }), {
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
-
-    const data = await response.json();
 
     return new Response(JSON.stringify(data), {
       status: 200,

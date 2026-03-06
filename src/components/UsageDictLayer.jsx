@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { lookupWord, lookupThesaurus } from '../services/dictionaryApi';
+import { lookupWord } from '../services/dictionaryApi';
 import { getDeepDive } from '../services/geminiApi';
 import { 
     getFavorites, 
@@ -22,6 +22,17 @@ const getWordOfTheDay = () => {
     return curatedWords[index].word;
 };
 
+const WRITING_QUOTES = [
+    { text: "The difference between the almost right word and the right word is the difference between the lightning bug and the lightning.", author: "Mark Twain" },
+    { text: "A word after a word after a word is power.", author: "Margaret Atwood" },
+    { text: "Words are, of course, the most powerful drug used by mankind.", author: "Rudyard Kipling" },
+    { text: "One day I will find the right words, and they will be simple.", author: "Jack Kerouac" },
+    { text: "If you want to change the world, pick up your pen and write.", author: "Martin Luther" },
+    { text: "The pen is the tongue of the mind.", author: "Cervantes" },
+    { text: "Any word you have to hunt for in a thesaurus is the wrong word.", author: "Stephen King" },
+    { text: "Don't tell me the moon is shining; show me the glint of light on broken glass.", author: "Anton Chekhov" },
+];
+
 const UsageDictLayer = ({ isVisible }) => {
     const [searchInput, setSearchInput] = useState('');
     const [currentWord, setCurrentWord] = useState(null);
@@ -37,6 +48,10 @@ const UsageDictLayer = ({ isVisible }) => {
     const [deepDiveCache, setDeepDiveCache] = useState({});
     const [searchBarVisible, setSearchBarVisible] = useState(false);
     const [insightPanelOpen, setInsightPanelOpen] = useState(false);
+    const [pageReady, setPageReady] = useState(false);
+    const [whisperVisible, setWhisperVisible] = useState(false);
+    const [whisperQuote, setWhisperQuote] = useState(null);
+    const [apiBanner, setApiBanner] = useState(null);
     
     // Refs for focus management
     const searchInputRef = useRef(null);
@@ -54,6 +69,26 @@ const UsageDictLayer = ({ isVisible }) => {
         const wordOfTheDay = getWordOfTheDay();
         handleLookup(wordOfTheDay);
     }, []);
+
+    // Mark page as ready after initial load completes
+    useEffect(() => {
+        if (currentWord && !loading && !pageReady) {
+            const timer = setTimeout(() => setPageReady(true), 600);
+            return () => clearTimeout(timer);
+        }
+    }, [currentWord, loading, pageReady]);
+
+    const handleWordHoverEnter = () => {
+        if (!pageReady || whisperVisible) return;
+        const quote = WRITING_QUOTES[Math.floor(Math.random() * WRITING_QUOTES.length)];
+        setWhisperQuote(quote);
+        setWhisperVisible(true);
+    };
+
+    const dismissWhisper = () => {
+        setWhisperVisible(false);
+        setWhisperQuote(null);
+    };
     
     // Keyboard shortcut: Cmd+K (Mac) / Ctrl+K (Windows/Linux) to toggle, Escape to close
     useEffect(() => {
@@ -120,25 +155,36 @@ const UsageDictLayer = ({ isVisible }) => {
             const result = await lookupWord(word);
             
             if (result.notFound) {
-                setSuggestions(result.suggestions);
-                setError(`"${word}" not found. Did you mean one of these?`);
+                setSuggestions(result.suggestions || []);
+                setError(`"${word}" not found.`);
                 setCurrentWord(null);
             } else {
-                // Try to get thesaurus data
-                const thesaurus = await lookupThesaurus(word);
-                const wordData = {
-                    ...result,
-                    synonyms: thesaurus.synonyms.length > 0 ? thesaurus.synonyms : result.synonyms,
-                    antonyms: thesaurus.antonyms.length > 0 ? thesaurus.antonyms : result.antonyms
-                };
-                
-                setCurrentWord(wordData);
+                setCurrentWord(result);
                 addToHistory(word.trim().toLowerCase());
                 setHistory(getHistory());
             }
         } catch (err) {
-            setError(`Error loading word: ${err.message}`);
-            setCurrentWord(null);
+            const fallback = curatedWords.find(
+                w => w.word.toLowerCase() === word.trim().toLowerCase()
+            );
+            if (fallback) {
+                setCurrentWord({
+                    word: fallback.word,
+                    pronunciation: fallback.pronunciation,
+                    audio: null,
+                    partOfSpeech: fallback.partOfSpeech,
+                    definitions: [{ id: 1, text: fallback.definition }],
+                    etymology: fallback.etymology,
+                    synonyms: [],
+                    antonyms: [],
+                    examples: fallback.example ? [fallback.example] : [],
+                    relatedWords: {},
+                });
+            } else {
+                setCurrentWord(null);
+                setError(`"${word}" — could not load from server.`);
+            }
+            setApiBanner('Dictionary server is unreachable. Showing offline data.');
         } finally {
             setLoading(false);
         }
@@ -166,7 +212,7 @@ const UsageDictLayer = ({ isVisible }) => {
         setDeepDiveLoading(true);
         setInsightPanelOpen(true);
         try {
-            const data = await getDeepDive(word);
+            const data = await getDeepDive(word, currentWord);
             setDeepDiveData(data);
             setDeepDiveCache(prev => ({ ...prev, [word]: data }));
         } catch (err) {
@@ -195,10 +241,16 @@ const UsageDictLayer = ({ isVisible }) => {
     const toggleFavorite = () => {
         if (!currentWord) return;
         
-        if (isFavorite(currentWord.word)) {
+        const wasAlreadyFavorite = isFavorite(currentWord.word);
+        if (wasAlreadyFavorite) {
             removeFavorite(currentWord.word);
         } else {
             addFavorite(currentWord);
+            if (pageReady) {
+                const quote = WRITING_QUOTES[Math.floor(Math.random() * WRITING_QUOTES.length)];
+                setWhisperQuote(quote);
+                setWhisperVisible(true);
+            }
         }
         setFavorites(getFavorites());
     };
@@ -252,6 +304,14 @@ const UsageDictLayer = ({ isVisible }) => {
                             </div>
                         </form>
                     </div>
+                </div>
+            )}
+            
+            {/* API status banner */}
+            {apiBanner && (
+                <div className="api-banner">
+                    <span>{apiBanner}</span>
+                    <button className="api-banner-close" onClick={() => setApiBanner(null)}>×</button>
                 </div>
             )}
             
@@ -330,6 +390,15 @@ const UsageDictLayer = ({ isVisible }) => {
                                 <span className="word-pronunciation">{currentWord.pronunciation}</span>
                                 <span className="word-pos">{currentWord.partOfSpeech}</span>
                             </div>
+                            {whisperVisible && whisperQuote && (
+                                <div className="word-whisper">
+                                    <p className="whisper-text">"{whisperQuote.text}"</p>
+                                    <div className="whisper-footer">
+                                        <p className="whisper-author">— {whisperQuote.author}</p>
+                                        <button className="whisper-dismiss" onClick={dismissWhisper} title="Dismiss">×</button>
+                                    </div>
+                                </div>
+                            )}
                         </header>
                         
                         <div className="word-body">
@@ -441,6 +510,20 @@ const UsageDictLayer = ({ isVisible }) => {
                             <div className="discovery-section">
                                 <p className="discovery-label">Reach for this word when</p>
                                 <p className="discovery-text reach-for-text">{deepDiveData.reach_for_when}</p>
+                            </div>
+                        )}
+
+                        {deepDiveData.connotation && (
+                            <div className="discovery-section">
+                                <p className="discovery-label">Connotation &amp; Register</p>
+                                <p className="discovery-text">{deepDiveData.connotation}</p>
+                            </div>
+                        )}
+
+                        {deepDiveData.common_pitfalls && (
+                            <div className="discovery-section">
+                                <p className="discovery-label">Watch out</p>
+                                <p className="discovery-text pitfall-text">{deepDiveData.common_pitfalls}</p>
                             </div>
                         )}
                         

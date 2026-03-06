@@ -1,57 +1,42 @@
 /**
- * Look up a word in Merriam-Webster Collegiate Dictionary (via Netlify function)
- * @param {string} word - The word to look up
- * @returns {Promise<Object>} - Parsed word data
+ * Look up a word via Wordnik (through Netlify function)
  */
 export const lookupWord = async (word) => {
     if (!word || !word.trim()) {
         throw new Error('Word is required');
     }
-    
+
     const cleanWord = word.trim().toLowerCase();
-    
+
     try {
         const response = await fetch('/.netlify/functions/dictionary', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ word: cleanWord, type: 'collegiate' })
+            body: JSON.stringify({ word: cleanWord })
         });
-        
+
         if (!response.ok) {
             throw new Error(`API request failed: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
-        // Check if suggestions were returned (word not found)
-        if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'string') {
-            return {
-                notFound: true,
-                suggestions: data
-            };
+
+        if (data.notFound) {
+            return { notFound: true, suggestions: [] };
         }
-        
-        // Parse the first entry
-        if (data.length === 0) {
-            return {
-                notFound: true,
-                suggestions: []
-            };
-        }
-        
-        const entry = data[0];
-        
+
         return {
-            word: entry.meta?.id?.split(':')[0] || cleanWord,
-            pronunciation: (entry.hwi?.prs?.[0]?.mw || entry.hwi?.hw || cleanWord).replace(/\*/g, ''),
-            audio: getAudioUrl(entry.hwi?.prs?.[0]?.sound),
-            partOfSpeech: entry.fl || 'unknown',
-            definitions: parseDefinitions(entry.shortdef || []),
-            etymology: parseEtymology(entry.et),
-            synonyms: entry.meta?.syns?.[0] || [],
-            antonyms: entry.meta?.ants?.[0] || [],
-            examples: parseExamples(entry.def?.[0]?.sseq),
-            fullData: entry
+            word: cleanWord,
+            pronunciation: parsePronunciation(data.pronunciations),
+            audio: parseAudio(data.audio),
+            partOfSpeech: parsePartOfSpeech(data.definitions),
+            definitions: parseDefinitions(data.definitions),
+            etymology: parseEtymology(data.etymologies),
+            synonyms: parseRelated(data.relatedWords, 'synonym'),
+            antonyms: parseRelated(data.relatedWords, 'antonym'),
+            examples: parseExamples(data.examples),
+            relatedWords: parseAllRelated(data.relatedWords),
+            rawData: data
         };
     } catch (error) {
         console.error('Dictionary API error:', error);
@@ -59,142 +44,64 @@ export const lookupWord = async (word) => {
     }
 };
 
-/**
- * Get audio URL for pronunciation
- */
-const getAudioUrl = (sound) => {
-    if (!sound?.audio) return null;
-    
-    const audio = sound.audio;
-    let subdirectory;
-    
-    if (audio.startsWith('bix')) {
-        subdirectory = 'bix';
-    } else if (audio.startsWith('gg')) {
-        subdirectory = 'gg';
-    } else if (audio.match(/^[0-9_]/)) {
-        subdirectory = 'number';
-    } else {
-        subdirectory = audio.charAt(0);
+const parsePronunciation = (pronunciations) => {
+    if (!pronunciations || !Array.isArray(pronunciations) || pronunciations.length === 0) return '';
+    const ipa = pronunciations.find(p => p.rawType === 'IPA') || pronunciations[0];
+    return ipa?.raw || '';
+};
+
+const parseAudio = (audio) => {
+    if (!audio || !Array.isArray(audio) || audio.length === 0) return null;
+    return audio[0]?.fileUrl || null;
+};
+
+const parsePartOfSpeech = (definitions) => {
+    if (!definitions || !Array.isArray(definitions) || definitions.length === 0) return 'unknown';
+    return definitions[0]?.partOfSpeech || 'unknown';
+};
+
+const parseDefinitions = (definitions) => {
+    if (!definitions || !Array.isArray(definitions)) return [];
+    return definitions
+        .filter(d => d.text)
+        .map((d, i) => ({
+            id: i + 1,
+            text: stripHtml(d.text),
+            partOfSpeech: d.partOfSpeech || null,
+            source: d.sourceDictionary || null
+        }));
+};
+
+const parseEtymology = (etymologies) => {
+    if (!etymologies || !Array.isArray(etymologies) || etymologies.length === 0) return null;
+    return stripHtml(etymologies[0]);
+};
+
+const parseRelated = (relatedWords, type) => {
+    if (!relatedWords || !Array.isArray(relatedWords)) return [];
+    const group = relatedWords.find(r => r.relationshipType === type);
+    return group?.words || [];
+};
+
+const parseAllRelated = (relatedWords) => {
+    if (!relatedWords || !Array.isArray(relatedWords)) return {};
+    const result = {};
+    for (const group of relatedWords) {
+        if (group.relationshipType && group.words?.length) {
+            result[group.relationshipType] = group.words;
+        }
     }
-    
-    return `https://media.merriam-webster.com/audio/prons/en/us/mp3/${subdirectory}/${audio}.mp3`;
+    return result;
 };
 
-/**
- * Parse definitions into clean format
- */
-const parseDefinitions = (shortdef) => {
-    return shortdef.map((def, i) => ({
-        id: i + 1,
-        text: def
-    }));
+const parseExamples = (examplesData) => {
+    if (!examplesData?.examples || !Array.isArray(examplesData.examples)) return [];
+    return examplesData.examples
+        .filter(e => e.text)
+        .map(e => stripHtml(e.text));
 };
 
-/**
- * Parse etymology
- */
-const parseEtymology = (etymologyData) => {
-    if (!etymologyData || etymologyData.length === 0) return null;
-    
-    // Etymology is in first element, second item
-    const etText = etymologyData[0]?.[1];
-    if (!etText) return null;
-    
-    // Clean up formatting codes
-    if (typeof etText === 'string') {
-        // Remove all {code} formatting
-        return etText.replace(/\{[^}]+\}/g, '').trim();
-    }
-    
-    // Handle complex etymology structure - recursively extract text
-    const extractText = (obj) => {
-        if (typeof obj === 'string') {
-            return obj.replace(/\{[^}]+\}/g, '');
-        }
-        if (Array.isArray(obj)) {
-            return obj.map(extractText).join(' ');
-        }
-        if (obj && typeof obj === 'object' && obj.text) {
-            return extractText(obj.text);
-        }
-        return '';
-    };
-    
-    return extractText(etText).trim();
+const stripHtml = (str) => {
+    if (!str || typeof str !== 'string') return '';
+    return str.replace(/<[^>]*>/g, '').trim();
 };
-
-/**
- * Parse examples from sense sequence
- */
-const parseExamples = (sseq) => {
-    if (!sseq) return [];
-    
-    const examples = [];
-    
-    const extractExamples = (arr) => {
-        if (!Array.isArray(arr)) return;
-        
-        arr.forEach(item => {
-            if (Array.isArray(item)) {
-                extractExamples(item);
-            } else if (item && typeof item === 'object') {
-                if (item.dt) {
-                    item.dt.forEach(dtItem => {
-                        if (Array.isArray(dtItem) && dtItem[0] === 'vis') {
-                            dtItem[1]?.forEach(vis => {
-                                if (vis.t) {
-                                    // Remove formatting codes
-                                    const cleanText = vis.t.replace(/\{[^}]+\}/g, '');
-                                    examples.push(cleanText);
-                                }
-                            });
-                        }
-                    });
-                }
-            }
-        });
-    };
-    
-    extractExamples(sseq);
-    return examples;
-};
-
-/**
- * Get thesaurus data (synonyms/antonyms) via Netlify function
- */
-export const lookupThesaurus = async (word) => {
-    if (!word || !word.trim()) {
-        throw new Error('Word is required');
-    }
-    
-    const cleanWord = word.trim().toLowerCase();
-    
-    try {
-        const response = await fetch('/.netlify/functions/dictionary', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ word: cleanWord, type: 'thesaurus' })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`API request failed: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (Array.isArray(data) && data.length > 0 && typeof data[0] !== 'string') {
-            const entry = data[0];
-            return {
-                synonyms: entry.meta?.syns?.flat() || [],
-                antonyms: entry.meta?.ants?.flat() || []
-            };
-        }
-        
-        return { synonyms: [], antonyms: [] };
-    } catch (error) {
-        console.error('Thesaurus API error:', error);
-        return { synonyms: [], antonyms: [] };
-    }
-};
-
